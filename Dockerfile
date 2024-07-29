@@ -1,15 +1,16 @@
-FROM python:3.10
+FROM python:3.12-slim
 
-ENV DEBIAN_FRONTEND noninteractive
+# Install masker itself
+RUN --mount=source=masker/dist,target=/dist \
+	PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /dist/*.whl
 
-COPY requirements.txt /
-RUN pip install -r /requirements.txt
+# COPY masker/dist/*.whl /
 
-COPY masker /app
-RUN cd /app && pip install .
+# RUN --mount=source=dist,target=/dist \
+# 	PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /dist/*.whl
 
-COPY run.sh /scripts/
-COPY run-test.sh /scripts/
-COPY nopperabo.py /scripts/
+# Install nopperabo and it's deps
+COPY pyproject.toml README.md src/nopperabo/nopperabo.py /scripts/
+RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /scripts/
 
-CMD ["/scripts/run.sh"]
+CMD python /scripts/nopperabo.py

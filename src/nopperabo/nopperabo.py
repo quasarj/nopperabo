@@ -9,21 +9,29 @@ import time
 import os
 import shutil
 import subprocess
-import logging
+# import logging
 import hashlib
 import json
+import time
+from datetime import timedelta
+from loguru import logger
 
 
 # set here to something inside the local compose network, just for testing
-HOSTNAME='oneposda-web-1:8080'
+# HOSTNAME='oneposda-web-1:8080'
+# TOKEN='e9a63bc2-bfa5-4299-afb3-c844fb2ef38b'
+# HOSTNAME='aries-posda-a1.ad.uams.edu'
+# TOKEN='fcda15e2-297e-4893-984c-d2667371d9f5'
+HOSTNAME='tcia-posda-rh-1.ad.uams.edu'
 TOKEN='e9a63bc2-bfa5-4299-afb3-c844fb2ef38b'
+
 DELAY=5
 TEMP='/temp'
 
-logging.basicConfig()
-logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
+# logging.basicConfig()
+# logger = logging.getLogger(__name__)
+# # logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.INFO)
 
 headers = {
     'Authorization': f'Bearer {TOKEN}',
@@ -140,6 +148,7 @@ def upload_output_files(iec):
     return import_event_id
 
 def do_work(iec):
+    start_time = time.time()
     logger.info(f"Processing Masking for iec={iec}")
 
     # get the masking item details for the IEC
@@ -158,8 +167,10 @@ def do_work(iec):
     os.makedirs('/output', exist_ok=True)
 
     # download each file to a temporary location
-    logger.debug("Downloading files for iec")
+    logger.info(f"Downloading {len(files)} files for iec...")
     download_files(iec, files, path)
+    download_time = timedelta(seconds=(time.time() - start_time))
+    logger.info(f"Downloading complete, elapsed time {download_time}, masking...")
 
     # call masker on the downlaoded files
     details_order = ['lr', 'pa', 'i', 's', 'd']
@@ -169,6 +180,7 @@ def do_work(iec):
         [
             'masker',
             '--norender',
+            '--multiprocessing',
             '-i', path,
             '-o', '/output',
             '-c', *[str(details[x]) for x in details_order],
@@ -179,7 +191,8 @@ def do_work(iec):
     result = proc.returncode
 
     if result == 0:
-        logger.info("Masker was successful")
+        masker_time = timedelta(seconds=(time.time() - start_time))
+        logger.info(f"Masker was successful ({masker_time}) uploading results...")
 
         # if successful, upload the resulting dicom files to posda
         logger.debug("Uploading output files")
@@ -199,9 +212,12 @@ def do_work(iec):
     shutil.rmtree(path)
     shutil.rmtree("/output")
 
+    total_eapsed_time = timedelta(seconds=(time.time() - start_time))
+    logger.info(f"Completed IEC {iec}, took {total_eapsed_time} seconds")
+
 def main(args):
     # print some startup messages
-    logger.info("starting up")
+    logger.info(f"starting up {HOSTNAME=} {TOKEN=}")
 
     # enter infinite loop
     while True:
