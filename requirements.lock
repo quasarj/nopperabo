@@ -24,6 +24,8 @@ daal==2024.5.0
     # via daal4py
 daal4py==2024.5.0
     # via scikit-learn-intelex
+docstring-parser==0.16
+    # via jsonargparse
 fonttools==4.53.1
     # via matplotlib
 h11==0.14.0
@@ -35,8 +37,12 @@ httpx==0.27.0
 idna==3.7
     # via anyio
     # via httpx
+importlib-resources==6.4.0
+    # via typeshed-client
 joblib==1.4.2
     # via scikit-learn
+jsonargparse==4.32.0
+    # via nopperabo
 kiwisolver==1.4.5
     # via matplotlib
 loguru==0.7.2
@@ -61,6 +67,8 @@ pyparsing==3.1.2
     # via matplotlib
 python-dateutil==2.9.0.post0
     # via matplotlib
+pyyaml==6.0.1
+    # via jsonargparse
 scikit-learn==1.5.1
     # via scikit-learn-intelex
 scikit-learn-intelex==2024.5.0
@@ -81,5 +89,9 @@ threadpoolctl==3.5.0
     # via scikit-learn
 tqdm==4.66.4
     # via masker
+typeshed-client==2.7.0
+    # via jsonargparse
+typing-extensions==4.12.2
+    # via typeshed-client
 vtk==9.3.1
     # via masker

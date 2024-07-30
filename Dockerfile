@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 # Install masker itself
-RUN --mount=source=masker/dist,target=/dist \
+RUN --mount=source=dist,target=/dist \
 	PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /dist/*.whl
 
 # COPY masker/dist/*.whl /
@@ -13,4 +13,4 @@ RUN --mount=source=masker/dist,target=/dist \
 COPY pyproject.toml README.md src/nopperabo/nopperabo.py /scripts/
 RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir /scripts/
 
-CMD python /scripts/nopperabo.py
+ENTRYPOINT ["/scripts/nopperabo.py"]

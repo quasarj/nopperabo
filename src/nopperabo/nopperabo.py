@@ -9,12 +9,12 @@ import time
 import os
 import shutil
 import subprocess
-# import logging
 import hashlib
 import json
 import time
 from datetime import timedelta
 from loguru import logger
+from jsonargparse import CLI
 
 
 # set here to something inside the local compose network, just for testing
@@ -215,7 +215,28 @@ def do_work(iec):
     total_eapsed_time = timedelta(seconds=(time.time() - start_time))
     logger.info(f"Completed IEC {iec}, took {total_eapsed_time} seconds")
 
-def main(args):
+def main(debug: bool=False,
+         token: str='xxxx',
+         hostname: str='localhost',
+         delay: int=5,
+         temp_directory: str='/tmp'):
+    """Process all ready-to-process masking records on the given server.
+
+    Reqeusts work from the server in a loop, forever. Waits a few
+    seconds if there is no work to do.
+
+    Args:
+        debug: Print debugging info.
+        hostname: The server to connect to.
+        token: The access token to use to connect to the server.
+        delay: Number of seconds to sleep when there is no work to do.
+        temp_directory: Directory to write temp files to.
+    """
+    global HOSTNAME, TOKEN
+    HOSTNAME = hostname
+    TOKEN = token
+    TEMP = temp_directory
+
     # print some startup messages
     logger.info(f"starting up {HOSTNAME=} {TOKEN=}")
 
@@ -230,8 +251,7 @@ def main(args):
         else:
             # wait a bit so we don't spam the server
             # return
-            time.sleep(DELAY)
+            time.sleep(delay)
 
 if __name__ == '__main__':
-    main(parse_args())
-    # update_masking_item(3, 0, 1)
+    CLI(main)
