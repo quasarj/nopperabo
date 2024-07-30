@@ -1,3 +1,3 @@
-# masker-docker
+# Noppera-bō
 
-Describe your project here.
+A daemon to run masker against a Posda installation.
