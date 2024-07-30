@@ -1,0 +1,3 @@
+[submodule "masker"]
+	path = masker
+	url = git@github.com:quasarj/masker.git
