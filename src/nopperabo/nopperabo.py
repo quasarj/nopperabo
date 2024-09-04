@@ -17,31 +17,61 @@ from loguru import logger
 from jsonargparse import CLI
 
 
-# set here to something inside the local compose network, just for testing
-# HOSTNAME='oneposda-web-1:8080'
-# TOKEN='e9a63bc2-bfa5-4299-afb3-c844fb2ef38b'
-# HOSTNAME='aries-posda-a1.ad.uams.edu'
-# TOKEN='fcda15e2-297e-4893-984c-d2667371d9f5'
-HOSTNAME='tcia-posda-rh-1.ad.uams.edu'
-TOKEN='e9a63bc2-bfa5-4299-afb3-c844fb2ef38b'
+HOSTNAME=None
+TOKEN=None
 
 DELAY=5
-TEMP='/temp'
-
-# logging.basicConfig()
-# logger = logging.getLogger(__name__)
-# # logger.setLevel(logging.DEBUG)
-# logger.setLevel(logging.INFO)
+TEMP='/tmp'
 
 headers = {
     'Authorization': f'Bearer {TOKEN}',
 }
 
-def parse_args():
-    parser = argparse.ArgumentParser(description=HELP)
-    parser.add_argument('--flag', help='an optional argument that takes a value')
+def main(debug: bool=False,
+         token: str='xxxx',
+         hostname: str='localhost',
+         delay: int=5,
+         temp_directory: str='/tmp'):
+    """Process all ready-to-process masking records on the given server.
 
-    return parser.parse_args()
+    Reqeusts work from the server in a loop, forever. Waits a few
+    seconds if there is no work to do.
+
+    Args:
+        debug: Print debugging info.
+        hostname: The server to connect to.
+        token: The access token to use to connect to the server.
+        delay: Number of seconds to sleep when there is no work to do.
+        temp_directory: Directory to write temp files to.
+    """
+    global HOSTNAME, TOKEN, headers
+    HOSTNAME = hostname
+    TOKEN = token
+    TEMP = temp_directory
+
+    headers = {
+        'Authorization': f'Bearer {TOKEN}',
+    }
+
+    # print some startup messages
+    logger.info(f"starting up {HOSTNAME=} {TOKEN=}")
+
+    # enter infinite loop
+    while True:
+        try:
+            # check for new work
+            iec = get_work()
+
+            logger.debug(f"get_work() said {iec=}")
+            if iec is not None:
+                do_work(iec)
+            else:
+                # wait a bit so we don't spam the server
+                time.sleep(delay)
+        except Exception as e:
+            print(repr(e))
+            print("Waiting a bit and then trying to continue...")
+            time.sleep(delay)
 
 def md5sum(fname):
     hash_md5 = hashlib.md5()
@@ -49,8 +79,6 @@ def md5sum(fname):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
-
-
 
 def url(url_part):
     ret =  f'http://{HOSTNAME}/papi/v1/{url_part}'
@@ -64,6 +92,7 @@ def get_work():
 
         return obj['image_equivalence_class_id']
     else:
+        logger.debug(f"get_work() failed {r=}")
         return None
 
 def get_masking_details(iec):
@@ -72,7 +101,7 @@ def get_masking_details(iec):
     obj = r.json()
 
     masking_parameters = json.loads(obj['masking_parameters'])
-    return masking_parameters
+    return obj['uid_root'], masking_parameters
 
 def get_iec_files(iec):
     r = httpx.get(url(f'iecs/{iec}/files'), headers=headers)
@@ -153,7 +182,21 @@ def do_work(iec):
 
     # get the masking item details for the IEC
     logger.debug("Getting details for iec")
-    details = get_masking_details(iec)
+    uid_root, details = get_masking_details(iec)
+    logger.debug(f"Read uid_root as {uid_root}")
+
+    # This is the default TCIA UID Root
+    if uid_root is None:
+        uid_root = '1.3.6.1.4.1.14519.5.2.1'
+
+    form = 'cylinder'
+    function = 'mask'
+
+    if 'form' in details:
+        form = details.pop('form')
+
+    if 'function' in details:
+        function = details.pop('function')
 
     # get list of files in IEC
     logger.debug("Getting file list for iec")
@@ -173,7 +216,7 @@ def do_work(iec):
     logger.info(f"Downloading complete, elapsed time {download_time}, masking...")
 
     # call masker on the downlaoded files
-    details_order = ['lr', 'pa', 'i', 's', 'd']
+    details_order = ['LR', 'PA', 'IS', 'width', 'height', 'depth']
 
     logger.debug("Running Masker...")
     proc = subprocess.run(
@@ -184,6 +227,10 @@ def do_work(iec):
             '-i', path,
             '-o', '/output',
             '-c', *[str(details[x]) for x in details_order],
+            '--form', form,
+            '--function', function,
+            '--hashuids',
+            '--uidroot', uid_root,
         ],
         capture_output=True,
         text=True
@@ -215,43 +262,7 @@ def do_work(iec):
     total_eapsed_time = timedelta(seconds=(time.time() - start_time))
     logger.info(f"Completed IEC {iec}, took {total_eapsed_time} seconds")
 
-def main(debug: bool=False,
-         token: str='xxxx',
-         hostname: str='localhost',
-         delay: int=5,
-         temp_directory: str='/tmp'):
-    """Process all ready-to-process masking records on the given server.
 
-    Reqeusts work from the server in a loop, forever. Waits a few
-    seconds if there is no work to do.
-
-    Args:
-        debug: Print debugging info.
-        hostname: The server to connect to.
-        token: The access token to use to connect to the server.
-        delay: Number of seconds to sleep when there is no work to do.
-        temp_directory: Directory to write temp files to.
-    """
-    global HOSTNAME, TOKEN
-    HOSTNAME = hostname
-    TOKEN = token
-    TEMP = temp_directory
-
-    # print some startup messages
-    logger.info(f"starting up {HOSTNAME=} {TOKEN=}")
-
-    # enter infinite loop
-    while True:
-        # check for new work
-        iec = get_work()
-
-        if iec is not None:
-            do_work(iec)
-            # return
-        else:
-            # wait a bit so we don't spam the server
-            # return
-            time.sleep(delay)
 
 if __name__ == '__main__':
     CLI(main)

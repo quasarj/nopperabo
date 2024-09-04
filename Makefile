@@ -13,7 +13,14 @@ run:
 	docker run \
 		-it \
 		--rm \
-		tcia/nopperabo:0 --hostname tcia-posda-rh-1.ad.uams.edu --token e9a63bc2-bfa5-4299-afb3-c844fb2ef38b --debug true
+		tcia/nopperabo:0 --hostname tcia-posda-rh-1.ad.uams.edu --token "e9a63bc2-bfa5-4299-afb3-c844fb2ef38b" --debug true
+run-local: 
+	docker run \
+		-it \
+		--rm \
+		--network oneposda_default \
+		-e LOGURU_LEVEL=INFO \
+		tcia/nopperabo:0 --hostname web:8080 --token "e9a63bc2-bfa5-4299-afb3-c844fb2ef38b"
 
 test:
 	docker run \
